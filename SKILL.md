@@ -8,7 +8,7 @@ description: GalGame 下载助手 — 搜索、筛选、下载 galgame 资源。
 ## Architecture
 
 ```
-User request → Claude + Playwright MCP → search sites → filter versions
+User request → Claude + OpenCLI browser → search sites → filter versions
     → IDM bridge (直链) / bdpan (百度盘) / 展示链接 (其他)
 ```
 
@@ -20,7 +20,7 @@ Before doing anything, verify these are available. If missing, fix or skip the r
 
 | Dependency | Check command | Used for | Required? |
 |-----------|---------------|----------|-----------|
-| Playwright MCP | Check available tools for `mcp__plugin_playwright_playwright__browser_*` | Browser search on all sites | **Yes** |
+| OpenCLI | `opencli doctor` | Browser search on all sites | **Yes** |
 | IDM bridge | `ls idm_bridge.py` in skill dir | Direct link downloads | For IDM mode |
 | Baidu client | `ls "D:/APP/BaiduNetdisk/BaiduNetdisk.exe"` | 百度盘 (auto-capture) | For 百度 mode |
 | BaiduPCS-Go | `which BaiduPCS-Go` | 百度盘 CLI (fast) | Optional, better than bdpan |
@@ -79,27 +79,29 @@ Then ask which to download.
 
 ## Phase 3: Search Sites
 
-**ALWAYS use Playwright MCP (`mcp__plugin_playwright_playwright__browser_*`). Never use WebSearch/WebFetch for site searching — they can't interact with search boxes, handle login walls, or execute JavaScript.**
+**ALWAYS use OpenCLI browser commands (`opencli browser dl <command>`). Never use WebSearch/WebFetch for site searching — they can't interact with search boxes, handle login walls, or execute JavaScript.**
+
+Session naming: use `dl` as the session ID for all download browsing. Always `opencli browser dl init` first to start the session.
 
 ### Search Discovery Protocol (for ANY site)
 
 Every site is different. Before searching, figure out how it works:
 
-1. **Navigate** to the site homepage
-2. **Snapshot** (`browser_snapshot`) — look for:
+1. **Navigate** to the site homepage: `opencli browser dl open <url>`
+2. **State** (`opencli browser dl state`) — look for:
    - `<textbox>` or `<searchbox>` elements → try typing + Enter
    - 🔍 / magnifying glass icons → click to open search
    - `Ctrl+K` hints (Alist sites)
-   - URL structure: try `/?s=keyword` or `/?search=keyword` or `/search?q=keyword`
+   - URL structure: try `opencli browser dl open <url>/?s=keyword`
 3. **If URL params don't work** (page shows home, not results) → the site requires interactive search. Use the searchbox or icon found in step 2.
-4. **If snapshot is too large** (>1000 lines) → use `browser_evaluate` to extract only links/text matching the game name
+4. **If state output is too large** → use `opencli browser dl eval` to extract only links/text matching the game name
 5. **Discuz! forums** (powered by Discuz) — URL params rarely work, always click 🔍 icon
-6. **Alist sites** (show `Ctrl K` at top) — press `Control+k` to open search modal
+6. **Alist sites** (show `Ctrl K` at top) — `opencli browser dl keys Control+k` to open search modal
 
 **Common failure patterns to avoid:**
 - ❌ Assuming `?s=` works everywhere → always test
 - ❌ Taking snapshot without first interacting with search → snapshot shows home page
-- ❌ Using WebSearch as shortcut → doesn't work for these sites
+- ❌ Using WebSearch/WebFetch as shortcut → doesn't work for these sites
 
 Cached search methods for known sites → `references/sites.md`
 
@@ -114,7 +116,7 @@ No 熟肉?   → PATH B: 生肉 + Patch (two downloads, then go to Phase 4)
 
 ### Search order (by download quality):
 
-**Search in fast serial** — Playwright MCP can only control one page at a time. Use `browser_tabs` to open multiple sites, then switch tabs quickly: fill search → Enter → snapshot → next tab. Each site should take ~30 seconds max.
+**Search in fast serial** — OpenCLI controls one browser. Use `opencli browser dl tab new` to open multiple sites in tabs, then switch tabs (`opencli browser dl tab select <id>`) to search each: fill search → Enter → state → next tab. Each site should take ~30 seconds max.
 
 **For 熟肉 / 生肉 (game bodies):**
 1. **shinnku.com** — direct links, IDM. 熟肉 (`zd/`, `0/win/`), 生肉 (`galgame0/`)
@@ -133,7 +135,7 @@ No 熟肉?   → PATH B: 生肉 + Patch (two downloads, then go to Phase 4)
 
 ### Auto-Extract Download Info
 
-After getting search results, use `browser_evaluate` to automatically extract:
+After getting search results, use `opencli browser dl eval` to automatically extract:
 - **Download links**: `document.querySelectorAll('a[href*="pan.baidu.com"], a[href*="pan.quark.cn"], a[href*="drive.uc.cn"], a[href*="shinnku.top"], a[href*="galgamedownload.date"]')`
 - **提取码**: regex `提取码[：:]\s*([a-zA-Z0-9]+)` on page text
 - **解压密码**: regex `(解压密码|密码)[：:]\s*(.+?)(?:\s|$|\))` on page text
@@ -158,14 +160,14 @@ Don't manually copy-paste links — extract programmatically.
 
 ### Universal Link Sniffing
 
-**Step A: Read the visual page first.** Take `browser_snapshot` of the detail/post page. LOOK for:
+**Step A: Read the visual page first.** Take `opencli browser dl state` of the detail/post page. LOOK for:
 - Buttons labeled "复制链接", "下载", "获取链接", "点击此处下载"
 - `<a>` links containing `pan.baidu.com`, `pan.quark.cn`, `drive.uc.cn`, `shinnku.top`, `galgamedownload.date`
 - Text patterns: `提取码`, `解压密码`, `密码`
 
 **Step B: Extract the real URL.** The page URL itself is rarely the download link. Find the link source:
 - If there's a "复制链接" / "点击下载" button → intercept clipboard or click to trigger download
-- If there are `<a>` tags with cloud URLs → extract href directly via `browser_evaluate`
+- If there are `<a>` tags with cloud URLs → extract href directly via `opencli browser dl eval`
 - If the link is hidden (kungal) → click "获取链接" button first
 
 **Step C: Feed to IDM bridge.** Never paste into IDM manually. Use:
@@ -175,13 +177,13 @@ python idm_bridge.py "<real_download_url>" "<referer>" "g:/" "<filename>" --sile
 
 ### Per-Site Instructions
 
-**shinnku:** Navigate to file detail page → the "点击此处下载" `<a>` tag href IS the CDN URL. Extract with `browser_evaluate` → IDM. Referer: `https://www.shinnku.com/`
+**shinnku:** Navigate to file detail page → the "点击此处下载" `<a>` tag href IS the CDN URL. Extract with `opencli browser dl eval` → IDM. Referer: `https://www.shinnku.com/`
 
-**mihoyo.ink / Alist:** Search → click file → detail page has "复制链接" button. Intercept `navigator.clipboard.writeText()` + `document.execCommand('copy')`, click button, captured URL is `/d/...` which IS the direct download. Feed to IDM. Referer: `https://mihoyo.ink/`. Password on same page.
+**mihoyo.ink / Alist:** Search → click file → detail page has "复制链接" button. Use `opencli browser dl eval` to intercept `navigator.clipboard.writeText()` + `document.execCommand('copy')`, click button, captured URL is `/d/...` which IS the direct download. Feed to IDM. Referer: `https://mihoyo.ink/`. Password on same page.
 
-**inarigal:** Click "下载资源" → wait countdown → capture URL from `browser_network_requests`. Token expires fast — IDM immediately. Referer: `https://inarigal.com/`
+**inarigal:** Click "下载资源" → wait countdown → capture URL from `opencli browser dl network`. Token expires fast — IDM immediately. Referer: `https://inarigal.com/`
 
-**fh-xy / galgame.dev (Discuz! forums):** Links + passwords are plain text in post body. `browser_evaluate` to extract `pan.baidu.com` / `pan.quark.cn` hrefs. Passwords regex from text.
+**fh-xy / galgame.dev (Discuz! forums):** Links + passwords are plain text in post body. `opencli browser dl eval` to extract `pan.baidu.com` / `pan.quark.cn` hrefs. Passwords regex from text.
 
 **qingju:** Blog post body → extract `pan.baidu.com` links + `提取码` from text. lz4格式 + 密码 `qingju`.
 
@@ -191,7 +193,7 @@ python idm_bridge.py "<real_download_url>" "<referer>" "g:/" "<filename>" --sile
 
 ### Step 1: Parallel link verification
 
-**Spawn agents in parallel** — one agent per link to verify it's alive. Each agent:
+**Open multiple tabs in OpenCLI** — one tab per link to verify it's alive. In each tab:
 - IDM直链: navigate to the detail page, confirm download link exists
 - 百度盘: navigate to share link, check it doesn't show "已失效"/"不存在"
 - 夸克/UC: navigate to confirm the page loads (not 404/deleted)
@@ -225,7 +227,7 @@ If a link is dead, the agent checks backup links from the same post. Only workin
 1. Tell user which sites were searched and what (if anything) was found
 2. Ask: *"要不要我自行添加其他有效站点继续搜？还是启用 WebSearch 全网搜索？"*
 3. If user provides new site URLs, add them to the search list and re-run Phase 3
-4. If user chooses WebSearch, use it to discover new sites/links, then verify with Playwright
+4. If user chooses WebSearch, use it to discover new sites/links, then verify with OpenCLI
 
 ---
 
@@ -243,8 +245,8 @@ python idm_bridge.py "<cdn_url>" "<referer>" "<save_path>" "<filename>" --silent
 
 **Strategy (try in order):**
 
-**1. Playwright browser (most reliable)** — navigate to share link, fill code, Baidu client auto-captures:
-- Open `https://pan.baidu.com/s/1xxxxx?pwd=abcd` in Playwright
+**1. OpenCLI browser (most reliable)** — navigate to share link, fill code, Baidu client auto-captures:
+- `opencli browser dl open "https://pan.baidu.com/s/1xxxxx?pwd=abcd"`
 - Baidu client at `D:/APP/BaiduNetdisk/BaiduNetdisk.exe` will auto-launch and handle download
 
 **2. BaiduPCS-Go CLI (fast, multi-threaded)** — if installed:
@@ -270,13 +272,13 @@ Show links to user. Suggest switching to shinnku/galzy.
 
 See `references/passwords.md` for site passwords and format handling.
 
-**Simultaneously with download**, create a `<filename>_解压密码.txt` in the same directory:
+**Only if the resource has a password**, create a `<filename>_解压密码.txt` in the same directory:
 ```
 文件名: <filename>
 解压密码: <password>
 下载来源: <site>
 ```
-Extract the password from the same page where you found the download link. Don't guess — it's on the same page.
+Extract the password from the same page where you found the download link. Don't guess — it's on the same page. If the site has no password (shinnku, galzy, inarigal, mihoyo.ink), skip this step entirely.
 
 ---
 

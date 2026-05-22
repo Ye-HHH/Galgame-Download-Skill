@@ -14,7 +14,7 @@
 
 1. Navigate to file detail page: `https://www.shinnku.com/files/shinnku/zd/...`
 2. Extract the URL from the "点击此处下载" link
-3. Use `browser_evaluate` to get the href:
+3. Use `opencli browser dl eval` to get the href:
    ```js
    () => document.querySelector('a[href*="shinnku.top"], a[href*="galgamedownload"]').href
    ```
@@ -38,7 +38,7 @@ python idm_bridge.py "<url>" "<referer>" "<save_path>" "<filename>" --silent
 
 inarigal uses API-backed downloads with time-limited authorization tokens:
 1. Click "下载资源" → site shows countdown → download triggered
-2. Capture real URL from `browser_network_requests`
+2. Capture real URL from `opencli browser dl network`
 3. URL pattern: `https://annnnnnn.soraflie.top/upfiles/...?Authorization=...`
 4. Token expires quickly — call IDM immediately
 5. Referer: `https://inarigal.com/`
