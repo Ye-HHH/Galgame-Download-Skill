@@ -22,65 +22,66 @@ Session-persistent settings stored in `references/config.json`:
 }
 ```
 
-- **Read** at start of every session (Phase 0)
+- **Read** at Phase 1
 - **Write** when user changes save directory: `"以后都下到 F:\\Games"`
 - Path format: Windows backslash, double-escaped in JSON. No trailing backslash.
 - User can override per-session: `"这次下到 D:\\Temp"` → use for this session only, don't update config
-
-### First-Time Setup (new user or missing directory)
-
-When `save_directory` does NOT exist on disk:
-1. ⚠️ Report: `"下载目录 e:\AllinOne 不存在，需要创建或换个目录"`
-2. Ask: `"创建这个目录？还是换个路径？"`
-3. If user says "创建" → `mkdir -p "<save_directory>"` and proceed
-4. If user gives new path → update config + create directory
-5. If user says "以后都下到 X" → update config + create directory
-
-After directory exists, proceed to Phase 0.
 
 ---
 
 ## Phase 0: Dependency Check
 
-Before doing anything, verify these are available. If missing, fix or skip the related download mode.
+Before doing anything, verify the toolchain. Fix missing dependencies before proceeding.
 
 | Dependency | Check command | Used for | Required? |
 |-----------|---------------|----------|-----------|
-| Config | `cat references/config.json` | Save directory | **Yes** |
 | OpenCLI | `opencli doctor` | Browser search on all sites | **Yes** |
 | IDM bridge | `ls idm_bridge.py` in skill dir | Direct link downloads | For IDM mode |
-| IDM TempPath | `reg query HKCU\Software\DownloadManager /v TempPath` | 下载缓存目录 | **Must be on same drive as save path** |
 | Baidu client | `ls "D:/APP/BaiduNetdisk/BaiduNetdisk.exe"` | 百度盘 (auto-capture) | For 百度 mode |
 | BaiduPCS-Go | `which BaiduPCS-Go` | 百度盘 CLI (fast) | Optional, better than bdpan |
 | bdpan CLI | `bdpan whoami` | 百度盘 fallback | Deprecated |
 | 7z | `ls "/c/Program Files/NVIDIA Corporation/NVIDIA app/7z.exe"` | Archive extraction | Nice to have |
 
-Report what's available as a summary, with save directory FIRST:
-
-```
-💾 保存路径: e:\AllinOne  ✅ (已存在) / ⚠️ (不存在)
-🔧 OpenCLI: ✅ / ❌
-🔧 IDM bridge: ✅ / ❌
-🔧 IDM TempPath: G:\IDM\Temp (same drive ✅ / ⚠️ wrong drive)
-🔧 Baidu client: ✅ / ❌
-🔧 BaiduPCS-Go: ✅ / ❌
-🔧 7z: ✅ / ❌
-```
-
-If IDM TempPath is on C: drive but save path is on another drive, fix it:
-```
-cmd.exe /c "reg add HKCU\Software\DownloadManager /v TempPath /t REG_SZ /d G:\IDM\Temp\ /f"
-mkdir -p "G:/IDM/Temp"
-```
+Report what's available. If OpenCLI is missing, stop — everything else depends on it. Other missing deps → note which download modes will be unavailable.
 
 Before starting any download work, ensure these permissions are in `.claude/settings.local.json` to avoid constant prompts: `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`. If missing, add them with Python.
 
 ---
 
-## Phase 1: Pre-download
+## Phase 1: Setup
 
-**Save directory** is already resolved in Phase 0. Only ask:
+Read `references/config.json` → get `save_directory`. Then check:
 
+### 1.1 Save Directory
+
+```
+💾 保存路径: e:\AllinOne  ✅ (已存在) / ⚠️ (不存在)
+```
+
+If directory does NOT exist:
+1. ⚠️ `"下载目录 e:\AllinOne 不存在，需要创建或换个目录"`
+2. Ask: `"创建这个目录？还是换个路径？"`
+3. "创建" → `mkdir -p "<save_directory>"`
+4. New path → update config + create directory
+5. "以后都下到 X" → update config + create directory
+
+### 1.2 IDM TempPath (only when IDM bridge is available)
+
+Check `reg query HKCU\Software\DownloadManager /v TempPath`. Must be on same drive as `save_directory`.
+
+```
+🔧 IDM TempPath: C:\Users\xxx\Downloads  ⚠️ 与保存路径不在同一盘！
+```
+
+If wrong drive, fix it:
+```
+cmd.exe /c "reg add HKCU\Software\DownloadManager /v TempPath /t REG_SZ /d <same_drive_as_save>:\IDM\Temp\ /f"
+mkdir -p "<same_drive>:/IDM/Temp"
+```
+
+### 1.3 Preferences
+
+Ask:
 1. **PC or mobile?** (exe / apk / krkr / ons)
 2. **Download mode?** Normal / Silent / Silent+Notify (飞书)
 
