@@ -21,23 +21,28 @@ The skill is NOT a standalone program — it's a workflow executed by Claude usi
 ## File Structure & When to Read
 
 ```
-SKILL.md                         ← Always read first. Complete Phase 0-6 workflow.
+SKILL.md                         ← READ FIRST. Workflow router (~74 lines). Each phase
+                                    points to its detail file in references/phases/.
 idm_bridge.py                    ← IDM COM API bridge. Read if modifying download behavior.
 references/
-  sites.md                       ← Quick reference for all 17 sites. Read before searching any site.
-  sites/mihoyo.md                ← MANDATORY before searching mihoyo.ink. Full guide: Ctrl+K modal,
-                                    React input handling, CDN extraction, password table, anti-patterns.
-  sites/ai2moe.md                ← MANDATORY before downloading from ai2.moe. 3-layer download flow,
-                                    IDM-first strategy, Python fallback, browser last resort.
-  cjk-input.md                   ← CJK text input protocol. Read when searching with CJK characters.
-                                    execCommand('insertText') + String.fromCodePoint() ONLY.
-  cdn.md                         ← shinnku CDN URL patterns and IDM usage details.
-  passwords.md                   ← Site-wide passwords and archive format handling (lz4, etc.)
+  phases/
+    phase-0-check.md             ← Toolchain dependency check
+    phase-1-setup.md             ← Config, save dir, TempPath, preferences
+    phase-2-research.md          ← Game research, name table, series presentation
+    phase-3-search.md            ← Search sites, extract links, 3.4 extract, 3.5 verify
+    phase-4-download.md          ← IDM/Baidu/other download execution
+    phase-5-wait.md              ← 403 check, file size polling
+    phase-6-extract.md           ← Extract, organize, clean, password files
+  sites.md                       ← Quick reference for all 17 sites.
+  sites/mihoyo.md                ← MANDATORY before mihoyo.ink. Ctrl+K, React, CDN, anti-patterns.
+  sites/ai2moe.md                ← MANDATORY before ai2.moe. 3-layer flow, Cloudflare, IDM+cookie.
+  cjk-input.md                   ← CJK input. execCommand('insertText') + String.fromCodePoint().
+  cdn.md                         ← shinnku CDN URL patterns and IDM usage.
+  passwords.md                   ← Site-wide passwords, lz4 format handling.
   config.json                    ← Persistent save_directory setting.
-  wait_download.py               ← Poll file size vs expected size until download complete.
-  extract_and_clean.py           ← Extract archive, delete on success, clean junk files.
-  403-forbidden.md               ← Read when IDM download doesn't start (403). Cloudflare
-                                    detection, cookie bypass, Python/browser fallback.
+  wait_download.py               ← Poll file size vs expected until download complete.
+  extract_and_clean.py           ← Extract archive, delete on success, clean junk.
+  403-forbidden.md               ← Download fails to start → Cloudflare detection, cookie bypass.
 ```
 
 **Key rule**: SKILL.md Phase 3 directs you to read `references/sites/mihoyo.md` before touching mihoyo.ink. Follow that directive every time — do not rely on memory.

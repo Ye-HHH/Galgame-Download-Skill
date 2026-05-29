@@ -123,17 +123,27 @@
 
 ```
 galgame-download/
-├── SKILL.md              Phase 0-6 完整工作流
-├── idm_bridge.py         IDM COM 桥接脚本
+├── SKILL.md                总路由 (74行)，每个Phase指向references/phases/
+├── idm_bridge.py            IDM COM 桥接脚本
 ├── references/
-│   ├── config.json       下载目录等持久化配置
-│   ├── sites.md          17 站点 + 搜索方式 + 常见失败模式
-│   ├── sites/mihoyo.md   mihoyo.ink 完整指南
-│   ├── passwords.md      密码处理 + lz4 教程
-│   ├── cjk-input.md      CJK 输入协议
-│   ├── cdn.md            shinnku CDN 细节 + IDM 用法
-│   ├── wait_download.py  轮询下载完成检测
-│   └── extract_and_clean.py  解压+清理+整理
+│   ├── phases/             ← 每个Phase的详细文档
+│   │   ├── phase-0-check.md
+│   │   ├── phase-1-setup.md
+│   │   ├── phase-2-research.md
+│   │   ├── phase-3-search.md
+│   │   ├── phase-4-download.md
+│   │   ├── phase-5-wait.md
+│   │   └── phase-6-extract.md
+│   ├── sites.md             17站点速查
+│   ├── sites/mihoyo.md      mihoyo.ink 完整指南
+│   ├── sites/ai2moe.md      ai2.moe 3层下载 + Cloudflare
+│   ├── cjk-input.md         CJK输入协议
+│   ├── cdn.md               shinnku CDN细节
+│   ├── passwords.md         密码处理 + lz4
+│   ├── 403-forbidden.md     下载403/Cloudflare处理
+│   ├── config.json          持久化配置
+│   ├── wait_download.py     轮询下载完成
+│   └── extract_and_clean.py 解压+清理+整理
 └── README.md
 ```
 
