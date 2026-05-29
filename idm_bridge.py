@@ -68,16 +68,21 @@ if __name__ == "__main__":
     silent = "--silent" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
 
+    cookie = ""
+    for a in sys.argv[1:]:
+        if a.startswith("--cookie="):
+            cookie = a.split("=", 1)[1]
+
     url = args[0] if len(args) > 0 else ""
     referer = args[1] if len(args) > 1 else ""
     path = args[2] if len(args) > 2 else ""
     filename = args[3] if len(args) > 3 else ""
 
     if not url:
-        print("Usage: python idm_bridge.py <url> [referer] [path] [filename] [--silent]")
+        print("Usage: python idm_bridge.py <url> [referer] [path] [filename] [--silent] [--cookie=...]")
         sys.exit(1)
 
-    ok = send(url, referer, path, filename, silent=silent)
+    ok = send(url, referer, path, filename, cookie=cookie, silent=silent)
     mode = "silent" if silent else "normal"
     print(f"IDM [{mode}]: {'OK' if ok else 'FAILED'}")
     sys.exit(0 if ok else 1)

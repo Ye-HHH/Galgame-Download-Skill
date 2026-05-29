@@ -47,13 +47,35 @@ var agreeBtn = Array.from(document.querySelectorAll('a')).filter(
 
 ## 下载策略（优先级递减）
 
-### 关于 IDM
+### 根因
 
-ai2.moe 使用 Cloudflare JS Challenge 保护下载链接。Cloudflare 检查 `Accept`、`Sec-Fetch-*` 等标准浏览器头，这些 IDM 不发送 → IDM 必 403。**不要用 IDM 下载 ai2.moe 文件。**
+ai2.moe 使用 Cloudflare JS Challenge。Cloudflare 检查浏览器 session cookie（`document.cookie`）。IDM 不带 cookie → 403。带 cookie → 满速。
 
-### 策略 1：Python 直接下载（主力）
+### 策略 1：IDM + 浏览器 Cookie（主力 ✅）
 
-提取 "同意并下载" href，用 Python urllib + 完整浏览器头直接下载。已验证可行：
+浏览器已访问 ai2.moe 并解决 Cloudflare 挑战后，提取 cookie 传给 IDM：
+
+**步骤：**
+
+1. 在 OpenCLI 浏览器中打开 ai2.moe 任意页面（确保 Cloudflare 挑战已过）
+2. 提取 cookies：
+```bash
+opencli browser dl eval "document.cookie"
+```
+3. 走完 3 层下载流程，获取 "同意并下载" href
+4. IDM 带 cookie 下载：
+```bash
+python idm_bridge.py "<agree_href>" "https://www.ai2.moe/" "<save_dir>\\" "<ascii_filename>" --cookie="<cookies>" --silent
+```
+5. 10 秒后检查文件是否出现：
+```bash
+ls -la "<save_dir>/<filename>"
+```
+6. 文件不在 → cookie 过期，刷新页面重新获取 cookie 重试
+
+### 策略 2：Python 直接下载（备选）
+
+提取 "同意并下载" href，用 Python urllib + 完整浏览器头。已验证可行（`idm_bridge.py` `--cookie` 更简单）：
 
 ```python
 import urllib.request
@@ -74,13 +96,9 @@ with open('<save_dir>/<filename>', 'wb') as f:
     f.write(resp.read())
 ```
 
-下载后文件直接在 `save_dir`，无需额外移动。
+### 策略 3：浏览器下载（最后手段）
 
-### 策略 2：浏览器下载（备选）
-
-如果 Python 失败，直接在浏览器中点击 "同意并下载"。
-
-**浏览器下载完成后移动到目标目录：**
+直接在浏览器中点击 "同意并下载"，下载完成后移动到目标目录：
 ```bash
 mv "/c/Users/adminn/Downloads/<filename>" "<save_dir>/<filename>"
 ```

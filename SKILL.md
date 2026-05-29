@@ -281,7 +281,7 @@ Referer mapping:
 
 **kungal:** Click "获取链接" button → reveals hidden link → extract href. Usually 夸克/和彩云.
 
-**ai2.moe:** Cloudflare 保护，IDM 必 403。策略：Python 直接下载（主力，带完整浏览器头）→ 浏览器（备选）。详情 → `references/sites/ai2moe.md`。
+**ai2.moe:** Cloudflare 保护。策略：IDM + 浏览器 cookie（`--cookie=` 参数，已测试满速）→ Python（备选）→ 浏览器兜底。详情 → `references/sites/ai2moe.md`。
 
 ## Phase 3.5: Verify & Present
 
