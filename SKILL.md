@@ -27,6 +27,17 @@ Session-persistent settings stored in `references/config.json`:
 - Path format: Windows backslash, double-escaped in JSON. No trailing backslash.
 - User can override per-session: `"这次下到 D:\\Temp"` → use for this session only, don't update config
 
+### First-Time Setup (new user or missing directory)
+
+When `save_directory` does NOT exist on disk:
+1. ⚠️ Report: `"下载目录 e:\AllinOne 不存在，需要创建或换个目录"`
+2. Ask: `"创建这个目录？还是换个路径？"`
+3. If user says "创建" → `mkdir -p "<save_directory>"` and proceed
+4. If user gives new path → update config + create directory
+5. If user says "以后都下到 X" → update config + create directory
+
+After directory exists, proceed to Phase 0.
+
 ---
 
 ## Phase 0: Dependency Check
@@ -44,7 +55,17 @@ Before doing anything, verify these are available. If missing, fix or skip the r
 | bdpan CLI | `bdpan whoami` | 百度盘 fallback | Deprecated |
 | 7z | `ls "/c/Program Files/NVIDIA Corporation/NVIDIA app/7z.exe"` | Archive extraction | Nice to have |
 
-Report what's available, including the current `save_directory` from config.
+Report what's available as a summary, with save directory FIRST:
+
+```
+💾 保存路径: e:\AllinOne  ✅ (已存在) / ⚠️ (不存在)
+🔧 OpenCLI: ✅ / ❌
+🔧 IDM bridge: ✅ / ❌
+🔧 IDM TempPath: G:\IDM\Temp (same drive ✅ / ⚠️ wrong drive)
+🔧 Baidu client: ✅ / ❌
+🔧 BaiduPCS-Go: ✅ / ❌
+🔧 7z: ✅ / ❌
+```
 
 If IDM TempPath is on C: drive but save path is on another drive, fix it:
 ```
@@ -58,15 +79,14 @@ Before starting any download work, ensure these permissions are in `.claude/sett
 
 ## Phase 1: Pre-download
 
-Ask these every session:
+**Save directory** is already resolved in Phase 0. Only ask:
 
 1. **PC or mobile?** (exe / apk / krkr / ons)
 2. **Download mode?** Normal / Silent / Silent+Notify (飞书)
 
-**Save directory** is read from `references/config.json` in Phase 0. If user says `"这次下到 D:\\Temp"` or `"以后都下到 F:\\Games"`:
-- "这次" / "这次下载" → session-only override, don't touch config
-- "以后" / "默认" / "改到" → update `references/config.json`, persists across sessions
-- No mention of path → use config value silently, don't ask
+If user mentions a different path mid-session:
+- "这次下到 D:\\Temp" → session-only override, don't touch config
+- "以后都下到 F:\\Games" → update `references/config.json`, persists across sessions
 
 ---
 
