@@ -47,48 +47,26 @@ var agreeBtn = Array.from(document.querySelectorAll('a')).filter(
 
 ## 下载策略（优先级递减）
 
-### 策略 1：IDM 直链（首选）
+### 关于 IDM
 
-提取 "同意并下载" 的 href，直接发送给 IDM：
+ai2.moe 使用 Cloudflare JS Challenge 保护下载链接。Cloudflare 检查 `Accept`、`Sec-Fetch-*` 等标准浏览器头，这些 IDM 不发送 → IDM 必 403。**不要用 IDM 下载 ai2.moe 文件。**
 
-```bash
-python idm_bridge.py "<agree_href>" "https://www.ai2.moe/" "<save_dir>\\" "<ascii_filename>" --silent
-```
+### 策略 1：Python 直接下载（主力）
 
-- Referer: `https://www.ai2.moe/`
-- 文件名：ASCII，从文件详情页提取（通常在 title 或 h1 中）
-
-### 策略 1.1：检查 IDM 是否成功
-
-IDM 提交后，等 10 秒检查文件是否开始下载：
-
-```bash
-ls -la "<save_dir>/<filename>" 2>&1
-```
-
-- 文件存在且大小 > 0 → IDM 成功，进入 Phase 5 等待完成
-- 文件不存在 → IDM 可能被拒绝（403），进入策略 1.2
-
-### 策略 1.2：刷新链接重试
-
-ai2.moe 的 csrfKey 有时效性。如果 IDM 失败（403 Forbidden）：
-
-1. 重新打开文件详情页 → 重新点击 "下载此文件" → 重新获取 "同意并下载" href
-2. 用新的 csrfKey 再次提交 IDM
-3. 再次检查
-
-如果仍失败 → 进入策略 2。
-
-### 策略 2：Python 直接下载（备选）
-
-ai2.moe 的链接用 Python urllib + 正确 headers 可以直接下载（不需要 cookie）：
+提取 "同意并下载" href，用 Python urllib + 完整浏览器头直接下载。已验证可行：
 
 ```python
 import urllib.request
 url = "<agree_href>"
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Referer': 'https://www.ai2.moe/'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Referer': 'https://www.ai2.moe/',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'same-origin',
 }
 req = urllib.request.Request(url, headers=headers)
 resp = urllib.request.urlopen(req)
@@ -96,15 +74,11 @@ with open('<save_dir>/<filename>', 'wb') as f:
     f.write(resp.read())
 ```
 
-**下载完成后将文件移动到目标目录：**
+下载后文件直接在 `save_dir`，无需额外移动。
 
-```bash
-mv "/c/Users/adminn/Downloads/<downloaded_file>" "<save_dir>/<filename>"
-```
+### 策略 2：浏览器下载（备选）
 
-### 策略 3：浏览器下载（最后手段）
-
-如果 Python 下载也失败，直接在浏览器中点击 "同意并下载"，让 Chrome 原生下载处理。
+如果 Python 失败，直接在浏览器中点击 "同意并下载"。
 
 **浏览器下载完成后移动到目标目录：**
 ```bash

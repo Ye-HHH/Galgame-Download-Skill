@@ -281,7 +281,7 @@ Referer mapping:
 
 **kungal:** Click "获取链接" button → reveals hidden link → extract href. Usually 夸克/和彩云.
 
-**ai2.moe:** 3-layer download flow → `references/sites/ai2moe.md`. Topic page → "查看文件" → "下载此文件" → popup → "同意并下载" href = final URL. Strategy: IDM first → check success → retry with fresh csrfKey → Python fallback → browser last. Referer: `https://www.ai2.moe/`.
+**ai2.moe:** Cloudflare 保护，IDM 必 403。策略：Python 直接下载（主力，带完整浏览器头）→ 浏览器（备选）。详情 → `references/sites/ai2moe.md`。
 
 ## Phase 3.5: Verify & Present
 
