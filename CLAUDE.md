@@ -36,6 +36,8 @@ references/
   config.json                    ← Persistent save_directory setting.
   wait_download.py               ← Poll file size vs expected size until download complete.
   extract_and_clean.py           ← Extract archive, delete on success, clean junk files.
+  403-forbidden.md               ← Read when IDM download doesn't start (403). Cloudflare
+                                    detection, cookie bypass, Python/browser fallback.
 ```
 
 **Key rule**: SKILL.md Phase 3 directs you to read `references/sites/mihoyo.md` before touching mihoyo.ink. Follow that directive every time — do not rely on memory.

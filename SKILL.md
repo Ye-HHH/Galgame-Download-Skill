@@ -390,10 +390,20 @@ Then **proceed to Phase 5 immediately** — don't wait for user.
 
 ## Phase 5: Wait & Complete
 
-For each download in the queue, poll until file size matches expected size:
+### 5.0 Quick Check — Did Download Actually Start?
+
+After submitting to IDM (Phase 4), wait 30 seconds then check if the file exists:
 
 ```bash
-# Run from skill directory
+ls -la "<save_dir>/<filename>"
+```
+
+- **File exists with size > 0** → download started, proceed to 5.1
+- **File does NOT exist** → likely 403 Forbidden. **→ Read `references/403-forbidden.md`**
+
+### 5.1 Poll for Completion
+
+```bash
 python references/wait_download.py "<save_dir>\\<filename>" "<expected_size>" --interval=30 --timeout=7200
 ```
 
