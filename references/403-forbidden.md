@@ -68,7 +68,7 @@ while true; do
   f=$(ls -t "$DOWN_DIR"/*.zip 2>/dev/null | head -1)
   if [ -n "$f" ]; then
     s1=$(stat -c%s "$f" 2>/dev/null)
-    sleep 5
+    sleep 30
     s2=$(stat -c%s "$f" 2>/dev/null)
     [ "$s1" = "$s2" ] && break
   fi
