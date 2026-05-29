@@ -55,30 +55,42 @@ except urllib.error.HTTPError as e:
 
 ## Cloudflare 解决方案
 
-Cloudflare JS Challenge 通过 JavaScript 测试区分人机。它检查的不是单个 header，而是浏览器 session cookie。
+Cloudflare JS Challenge 检测 **TLS 指纹**（非 cookie）。浏览器 TLS 指纹合法 → 通过；IDM TLS 指纹不同 → 403。
 
-### 通用流程
+### 策略 1：浏览器点击 + IDM 扩展捕获（主力）
 
-1. **确保浏览器已访问目标站** — 在 OpenCLI 浏览器中打开目标网站首页，Cloudflare 挑战会在后台自动解决
-2. **提取 cookies**：
-```bash
-opencli browser dl eval "document.cookie"
+1. 在 OpenCLI 浏览器中触发下载（点击下载按钮）
+2. IDM 浏览器扩展自动拦截下载请求
+3. 通过浏览器网络栈（Cloudflare 认可 TLS 指纹）→ IDM 满速下载
+4. 下载完成后 `cp` 到目标目录
+
+### 策略 2：Python 直接下载（备选，较慢）
+
+用 Python urllib + 完整浏览器头。能过 Cloudflare（urllib TLS 库 + 头伪装得像 Chrome）但单线程：
+
+```python
+import urllib.request
+url = "<download_url>"
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Referer': '<referer_url>',
+    'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin',
+}
+req = urllib.request.Request(url, headers=headers)
+resp = urllib.request.urlopen(req)
+with open('<save_dir>/<filename>', 'wb') as f:
+    f.write(resp.read())
 ```
-3. **IDM 带 cookie 重新提交**：
-```bash
-python idm_bridge.py "<url>" "<referer>" "<save_dir>\\" "<filename>" --cookie="<cookies>" --silent
-```
-4. **30 秒后检查**：
-```bash
-ls -la "<save_dir>/<filename>"
-```
-5. 文件仍不存在 → 刷新浏览器页面，重新提取 cookie，重试一次
-6. 两次都失败 → 用 Python 直接下载，或浏览器下载兜底
+
+### 为什么 IDM 直接下载不行
+
+Cloudflare 检测 TLS 握手指纹（JA3 指纹）。Chrome 和 IDM 的 TLS 库不同，指纹不同。即使传了浏览器 cookie，Cloudflare 也不认可——它看的是 TLS 层，不是应用层。
 
 ### 站点特殊说明
 
-- **ai2.moe**：已验证 IDM + cookie 可行。详情 → `references/sites/ai2moe.md`
-- **其他站**：同样逻辑，先测 Cloudflare 再决定策略
+- **ai2.moe**：已验证。详情 → `references/sites/ai2moe.md`
 
 ## Python 兜底下载
 

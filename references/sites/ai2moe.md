@@ -49,33 +49,28 @@ var agreeBtn = Array.from(document.querySelectorAll('a')).filter(
 
 ### 根因
 
-ai2.moe 使用 Cloudflare JS Challenge。Cloudflare 检查浏览器 session cookie（`document.cookie`）。IDM 不带 cookie → 403。带 cookie → 满速。
+ai2.moe 使用 Cloudflare JS Challenge，检测 **TLS 指纹**（非 cookie）。
+- Python + 完整浏览器头 → 200 OK（无 cookie 也行）
+- IDM 直接请求 → 403（TLS 指纹不匹配）
+- IDM + cookie → 403（cookie 对 Cloudflare 无效）
 
-### 策略 1：IDM + 浏览器 Cookie（主力 ✅）
+### 策略 1：浏览器点击 + IDM 扩展捕获（主力 ✅）
 
-浏览器已访问 ai2.moe 并解决 Cloudflare 挑战后，提取 cookie 传给 IDM：
+浏览器已通过 Cloudflare（TLS 指纹合法），IDM 扩展拦截下载请求，满速。
 
 **步骤：**
 
-1. 在 OpenCLI 浏览器中打开 ai2.moe 任意页面（确保 Cloudflare 挑战已过）
-2. 提取 cookies：
+1. 走完 3 层流程到弹窗
+2. 点击 "同意并下载" → 浏览器触发下载 → IDM 扩展自动捕获
+3. 下载完成后移动到目标位置：
 ```bash
-opencli browser dl eval "document.cookie"
+cp "<browser_download_dir>/<auto_filename>" "<save_dir>/<filename>"
 ```
-3. 走完 3 层下载流程，获取 "同意并下载" href
-4. IDM 带 cookie 下载：
-```bash
-python idm_bridge.py "<agree_href>" "https://www.ai2.moe/" "<save_dir>\\" "<ascii_filename>" --cookie="<cookies>" --silent
-```
-5. 10 秒后检查文件是否出现：
-```bash
-ls -la "<save_dir>/<filename>"
-```
-6. 文件不在 → cookie 过期，刷新页面重新获取 cookie 重试
+IDM 扩展捕获后下载目录通常是浏览器默认目录（如 `e:\All In One\Downloads\06\`）。
 
-### 策略 2：Python 直接下载（备选）
+### 策略 2：Python 直接下载（备选，较慢）
 
-提取 "同意并下载" href，用 Python urllib + 完整浏览器头。已验证可行（`idm_bridge.py` `--cookie` 更简单）：
+用 Python urllib + 完整浏览器头。能过 Cloudflare 但单线程较慢：
 
 ```python
 import urllib.request
@@ -86,21 +81,12 @@ headers = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     'Accept-Encoding': 'gzip, deflate, br',
     'Referer': 'https://www.ai2.moe/',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin',
 }
 req = urllib.request.Request(url, headers=headers)
 resp = urllib.request.urlopen(req)
 with open('<save_dir>/<filename>', 'wb') as f:
     f.write(resp.read())
-```
-
-### 策略 3：浏览器下载（最后手段）
-
-直接在浏览器中点击 "同意并下载"，下载完成后移动到目标目录：
-```bash
-mv "/c/Users/adminn/Downloads/<filename>" "<save_dir>/<filename>"
 ```
 
 ## 文件信息提取
