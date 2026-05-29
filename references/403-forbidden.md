@@ -57,31 +57,24 @@ except urllib.error.HTTPError as e:
 
 Cloudflare JS Challenge 检测 **TLS 指纹**（非 cookie）。浏览器 TLS 指纹合法 → 通过；IDM TLS 指纹不同 → 403。
 
-### 策略 1：浏览器点击 + IDM 扩展捕获（主力）
+### 策略：浏览器原生下载 → 轮询 → 移动（全自动）
 
 1. 在 OpenCLI 浏览器中触发下载（点击下载按钮）
-2. IDM 浏览器扩展自动拦截下载请求
-3. 通过浏览器网络栈（Cloudflare 认可 TLS 指纹）→ IDM 满速下载
-4. 下载完成后 `cp` 到目标目录
-
-### 策略 2：Python 直接下载（备选，较慢）
-
-用 Python urllib + 完整浏览器头。能过 Cloudflare（urllib TLS 库 + 头伪装得像 Chrome）但单线程：
-
-```python
-import urllib.request
-url = "<download_url>"
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Referer': '<referer_url>',
-    'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'same-origin',
-}
-req = urllib.request.Request(url, headers=headers)
-resp = urllib.request.urlopen(req)
-with open('<save_dir>/<filename>', 'wb') as f:
-    f.write(resp.read())
+2. 浏览器原生下载（满速，通过 Cloudflare）
+3. 轮询文件大小直到稳定（下载完成），移动到目标目录：
+```bash
+DOWN_DIR="e:/All In One/Downloads/06"
+while true; do
+  f=$(ls -t "$DOWN_DIR"/*.zip 2>/dev/null | head -1)
+  if [ -n "$f" ]; then
+    s1=$(stat -c%s "$f" 2>/dev/null)
+    sleep 5
+    s2=$(stat -c%s "$f" 2>/dev/null)
+    [ "$s1" = "$s2" ] && break
+  fi
+  sleep 5
+done
+cp "$f" "<save_dir>/<filename>"
 ```
 
 ### 为什么 IDM 直接下载不行

@@ -64,7 +64,7 @@ Config in `references/config.json`, tools in `idm_bridge.py`, phases in `referen
 ### Workflow
 - **Phase 3.5 is HARD BOUNDARY** — confirm with user before any download
 - **Version preference**: 熟肉 > 生肉, 汉化/官中 > 机翻, non-Steam > Steam, single > split
-- **ai2.moe**: IDM + `--cookie=` primary, Python fallback → `references/sites/ai2moe.md`
+- **ai2.moe**: 浏览器点击下载 → 轮询完成 → cp 到目标目录 → `references/sites/ai2moe.md`
 
 ### Site Cheatsheet
 - **fh-xy**: click 🔍, URL params don't work
