@@ -39,6 +39,7 @@
 | 2DFan | `https://2dfan.com/` | 汉化补丁、免验证补丁、攻略 |
 | VNDB | `https://vndb.org/` | 评分、发售日期、系列关系 |
 | Bangumi | `https://bgm.tv/` | 中文评价、讨论 |
+| ai2.moe | `https://www.ai2.moe/files/category/12-全游戏无码化计划（ai去码）/` | AI 去码补丁，免登录，3 层下载流程 → `references/sites/ai2moe.md` |
 | moyu.moe | `https://www.moyu.moe/` | 汉化补丁归档 |
 | mihoyo.ink 补丁 | `梓澪の妙妙屋/补丁/汉化补丁归档/2dfan AI翻译补丁合集/` | 免登录补丁镜像 |
 

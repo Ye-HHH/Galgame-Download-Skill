@@ -204,8 +204,8 @@ No 熟肉?   → PATH B: 生肉 + Patch (two downloads, then go to Phase 4)
 **For Patches (PATH B only):**
 1. **mihoyo.ink** — `梓澪の妙妙屋/补丁/汉化补丁归档/2dfan AI翻译补丁合集/`
 2. **2dfan.com** — patches (may need login)
-3. **moyu.moe** — patch archive
-4. **ai2.moe** — fallback
+3. **ai2.moe** — AI 去码补丁，免登录。3 层下载流程 → `references/sites/ai2moe.md`
+4. **moyu.moe** — patch archive
 
 ### Auto-Extract Download Info
 
@@ -280,6 +280,8 @@ Referer mapping:
 **qingju:** Blog post body → extract `pan.baidu.com` links + `提取码` from text. lz4格式 + 密码 `qingju`.
 
 **kungal:** Click "获取链接" button → reveals hidden link → extract href. Usually 夸克/和彩云.
+
+**ai2.moe:** 3-layer download flow → `references/sites/ai2moe.md`. Topic page → "查看文件" → "下载此文件" → popup → "同意并下载" href = final URL. Strategy: IDM first → check success → retry with fresh csrfKey → Python fallback → browser last. Referer: `https://www.ai2.moe/`.
 
 ## Phase 3.5: Verify & Present
 

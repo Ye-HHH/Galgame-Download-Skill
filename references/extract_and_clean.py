@@ -128,7 +128,7 @@ def extract(archive_path: str, output_dir: str, password: str = '') -> bool:
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
         if result.returncode == 0:
-            print("  ✅ Extraction OK")
+            print("  [OK] Extraction OK")
             return True
         else:
             # If -p- failed, retry without password flag (might have no password)
@@ -136,20 +136,20 @@ def extract(archive_path: str, output_dir: str, password: str = '') -> bool:
                 cmd2 = [seven_zip, 'x', archive_path, f'-o{output_dir}', '-y']
                 result2 = subprocess.run(cmd2, capture_output=True, text=True, timeout=3600)
                 if result2.returncode == 0:
-                    print("  ✅ Extraction OK (no password)")
+                    print("  [OK] Extraction OK (no password)")
                     return True
 
             stderr = result.stderr[-500:] if len(result.stderr) > 500 else result.stderr
-            print(f"  ❌ Extraction failed: {stderr}")
+            print(f"  [FAIL] Extraction failed: {stderr}")
             return False
     except subprocess.TimeoutExpired:
-        print("  ❌ Extraction timed out (>1 hour)")
+        print("  [FAIL] Extraction timed out (>1 hour)")
         return False
 
 
 def _extract_lz4(archive_path: str, output_dir: str) -> bool:
     """Decrypt lz4 then extract."""
-    print("  ⚠️ lz4 encrypted archive — decrypting first")
+    print("  [!] lz4 encrypted archive — decrypting first")
     # lz4 files: first decrypt with lz4 tool, then extract with 7z
     # qingju.org format: lz4 decrypt → .7z → extract
     decrypted = archive_path.replace('.lz4', '.7z')
@@ -188,8 +188,12 @@ def cleanup_junk(extracted_dir: str):
             for pattern in JUNK_PATTERNS:
                 if re.match(pattern, f, re.IGNORECASE):
                     fp = os.path.join(root, f)
-                    os.remove(fp)
-                    print(f"  Cleaned: {f}")
+                    try:
+                        os.chmod(fp, 0o666)
+                        os.remove(fp)
+                        print(f"  Cleaned: {f}")
+                    except Exception:
+                        pass
                     break
 
 

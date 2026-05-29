@@ -27,6 +27,8 @@ references/
   sites.md                       ← Quick reference for all 17 sites. Read before searching any site.
   sites/mihoyo.md                ← MANDATORY before searching mihoyo.ink. Full guide: Ctrl+K modal,
                                     React input handling, CDN extraction, password table, anti-patterns.
+  sites/ai2moe.md                ← MANDATORY before downloading from ai2.moe. 3-layer download flow,
+                                    IDM-first strategy, Python fallback, browser last resort.
   cjk-input.md                   ← CJK text input protocol. Read when searching with CJK characters.
                                     execCommand('insertText') + String.fromCodePoint() ONLY.
   cdn.md                         ← shinnku CDN URL patterns and IDM usage details.
