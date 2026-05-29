@@ -15,9 +15,10 @@
 | Baidu client | `ls "D:/APP/BaiduNetdisk/BaiduNetdisk.exe"` | 百度盘 (auto-capture) | For 百度 mode |
 | BaiduPCS-Go | `which BaiduPCS-Go` | 百度盘 CLI (fast) | Optional |
 | bdpan CLI | `bdpan whoami` | 百度盘 fallback | Deprecated |
+| Python | `python --version` or `"/c/Program Files/Python312/python.exe" --version` | idm_bridge.py, wait_download.py, extract_and_clean.py | **Yes** |
 | 7z | `ls "/c/Program Files/NVIDIA Corporation/NVIDIA app/7z.exe"` | Archive extraction | Nice to have |
 
-Report what's available. If OpenCLI is missing, stop — everything depends on it. Other missing deps → note which download modes will be unavailable.
+Report what's available. If OpenCLI or Python is missing, stop — everything depends on them. Other missing deps → note which download modes will be unavailable.
 
 ## Permissions
 

@@ -28,7 +28,7 @@ python references/extract_and_clean.py "<save_dir>\\<filename>" "<output_dir>" -
 - `--keep` to skip deletion (default: deletes archive on success)
 - Handles: .7z, .rar, .zip, .lz4, .tar.gz, multipart (.7z.001)
 - On success: deletes archive, cleans junk (.url, 广告, Thumbs.db, __MACOSX)
-- On failure: keeps archive, reports error
+- On failure: keeps archive, reports error to user (`"XXX 解压失败，压缩包保留在 g:\，请手动解压"`)
 
 ## 6.3 Password File
 

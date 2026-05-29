@@ -15,7 +15,7 @@ ls -la "<save_dir>/<filename>"
 ```
 
 - File exists + size > 0 → download started, proceed to 5.1
-- File does NOT exist → likely 403 Forbidden. **→ Read `references/403-forbidden.md`**
+- File does NOT exist → IDM 说 OK 但文件没出现 = 403 Forbidden。**→ Read `references/403-forbidden.md`，按流程修复后回到 Phase 4 重发**
 
 ## 5.1 Poll for Completion
 
