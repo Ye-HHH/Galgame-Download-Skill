@@ -35,7 +35,7 @@ references/
     phase-6-extract.md           ← Extract, organize, clean, password files
   sites.md                       ← Quick reference for all 17 sites.
   sites/mihoyo.md                ← MANDATORY before mihoyo.ink. Ctrl+K, React, CDN, anti-patterns.
-  sites/ai2moe.md                ← MANDATORY before ai2.moe. 3-layer flow, Cloudflare, IDM+cookie.
+  sites/ai2moe.md                ← MANDATORY before ai2.moe. 3-layer flow, browser download (Cloudflare TLS).
   cjk-input.md                   ← CJK input. execCommand('insertText') + String.fromCodePoint().
   cdn.md                         ← shinnku CDN URL patterns and IDM usage.
   passwords.md                   ← Site-wide passwords, lz4 format handling.
@@ -65,6 +65,12 @@ references/
 - Filenames: ASCII ONLY. CJK chars corrupt in bash → garbled filenames like `LAMUNATION锛�.7z`.
 - IDM TempPath must be on the same drive as downloads. Check via `reg query HKCU\Software\DownloadManager /v TempPath`.
 
+### Cloudflare / 403
+- Cloudflare detects **TLS fingerprint**, not cookies. IDM can't pass → 403 even with cookies.
+- For Cloudflare sites (ai2.moe): browser click download → poll completion (30s stable) → cp to save dir.
+- Python urllib + full browser headers works as fallback (single-threaded, slower).
+- See `references/403-forbidden.md` for full detection and resolution flow.
+
 ### Workflow
 - Phase 3 → Find game → click result → extract CDN + size + password → next game. **Never batch-search then backtrack.**
 - Phase 3.5 is a HARD BOUNDARY. Present full summary table → wait for explicit confirmation → then download.
@@ -83,13 +89,21 @@ references/
 ```bash
 # IDM download (run from skill directory)
 cd E:/.../skills/galgame-download
-python idm_bridge.py "<cdn_url>" "<referer>" "<save_dir>\\" "<ascii_filename>" --silent
+python idm_bridge.py "<url>" "<referer>" "<save_dir>\\" "<filename>" --silent
+
+# IDM with cookies (for non-Cloudflare sites that need auth)
+python idm_bridge.py "<url>" "<referer>" "<save_dir>\\" "<filename>" --cookie="<cookies>" --silent
 
 # Wait for download to complete
 python references/wait_download.py "<save_dir>\\<filename>" "3.5 GB" --interval=30
 
 # Extract, delete archive, clean junk
 python references/extract_and_clean.py "<save_dir>\\<filename>" "<output_dir>" --password "<pwd>"
+
+# Cloudflare sites (ai2.moe): browser download + poll + move
+# 1. Click 同意并下载 in browser -> downloads to DOWN_DIR
+# 2. Poll until file size stable for 30s
+# 3. cp "$DOWN_DIR/$f" "<save_dir>/<filename>"
 
 # OpenCLI browser search (run from any directory)
 opencli browser dl open "https://mihoyo.ink/"
@@ -103,9 +117,10 @@ cmd.exe /c "reg add HKCU\Software\DownloadManager /v TempPath /t REG_SZ /d G:\ID
 ## Dependencies
 
 - Windows + Internet Download Manager (IDM)
-- Python 3 + `comtypes` (`pip install comtypes`)
-- OpenCLI (`npm install -g @jackwener/opencli`) + Chrome extension
+- **Python 3** + `comtypes` (`pip install comtypes`) — needed for idm_bridge.py, wait_download.py, extract_and_clean.py
+- OpenCLI (`npm install -g @jackwener/opencli`) + Chrome extension — browser automation
 - BaiduPCS-Go / bdpan (optional, for Baidu cloud downloads)
+- 7z — archive extraction (nice to have)
 
 ## Modifying the Skill
 
