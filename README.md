@@ -39,7 +39,7 @@
 └──────────────┬───────────────────────┘
                ▼
 ┌──────────────────────────────────────┐
-│  ② 多站点并行搜索 (Playwright MCP)   │
+│  ② 多站点并行搜索 (OpenCLI Browser)    │
 │  shinnku → mihoyo → inarigal → galzy│
 │  → fh-xy → qingju → kungal ...      │
 │  每个站自动发现搜索方式，中/日双名搜    │
@@ -63,7 +63,7 @@
 ┌──────────────────────────────────────┐
 │  ⑤ 下载引擎                         │
 │  IDM COM Bridge (CDN 直链)           │
-│  Playwright 浏览器 (百度盘)          │
+│  OpenCLI 浏览器 (百度盘)             │
 │  BaiduPCS-Go CLI (百度盘高速)        │
 │  bdpan (百度盘备选)                  │
 └──────────────┬───────────────────────┘
@@ -90,8 +90,8 @@
 | 6 | **qingju.org** | 百度网盘 | 搜索框/URL | 青桔网，lz4 加密，密码统一 qingju |
 | 7 | **kungal.com** | 跳转网盘 | 搜索框/URL | 鲲 Galgame，资料最全，评分标签应有尽有 |
 | 8 | **touchgal.ink** | 跳转 | 搜索不稳定 | 鲲家二弟，界面现代 |
-| 9 | **nysoure.com** | 重定向网盘 | — | 930 资源，集成鲲补丁 |
-| 10 | **acgngames.net** | 跳转网盘 | — | 备选，覆盖少 |
+| 9 | ~~nysoure.com~~ | 重定向网盘 | — | ❌ 已死，无法连接 |
+| 10 | ~~acgngames.net~~ | 跳转网盘 | — | ❌ 已死，无法连接 |
 | 11 | **acggw.me** | 跳转网盘 | 搜索框 | ACG 港湾，RPG/SLG/gal 大乱炖 |
 | 12 | **chgal.com** | 磁力/网盘 | — | 绅仕天堂，密码 erciyuanfengwo，SSL 过期 |
 | 13 | **jiuliacg.com** | 隐藏链接 | — | 玖黎 ACG，需登录+评论 |
@@ -123,8 +123,11 @@ galgame-download/
 ├── SKILL.md              Phase 0-5 完整工作流
 ├── idm_bridge.py         IDM COM 桥接脚本
 ├── references/
+│   ├── config.json       下载目录等持久化配置
 │   ├── sites.md          17 站点 + 搜索方式 + 常见失败模式
+│   ├── sites/mihoyo.md   mihoyo.ink 完整指南
 │   ├── passwords.md      密码处理 + lz4 教程
+│   ├── cjk-input.md      CJK 输入协议
 │   └── cdn.md            shinnku CDN 细节 + IDM 用法
 └── README.md
 ```
@@ -135,17 +138,17 @@ galgame-download/
 
 ```bash
 # IDM 直链（shinnku/galzy/mihoyo 等）
-python idm_bridge.py "<url>" "<referer>" "g:/" "<filename>" --silent
+python idm_bridge.py "<url>" "<referer>" "<save_dir>" "<filename>" --silent
 
-# 百度网盘（Playwright 浏览器方式，最可靠）
-# 直接在 Playwright 中打开分享链接，客户端自动接管
+# 百度网盘（OpenCLI 浏览器方式，最可靠）
+# 直接在 OpenCLI 中打开分享链接，客户端自动接管
 
 # BaiduPCS-Go CLI（高速多线程）
 BaiduPCS-Go transfer <share_link> -p <pwd>
 BaiduPCS-Go download <remote_path> <local_path>
 ```
 
-整个流程由 Claude Code + Playwright MCP 驱动。
+整个流程由 Claude Code + OpenCLI 浏览器驱动。
 你只需要说出你想玩什么游戏，AI 会帮你找到它、验证链接、下载它、告诉你密码。
 
 ---
@@ -157,4 +160,4 @@ BaiduPCS-Go download <remote_path> <local_path>
 - Windows + IDM（Internet Download Manager）
 - Python 3 + comtypes（IDM COM 桥接）
 - bdpan / BaiduPCS-Go（百度网盘 CLI，可选）
-- Claude Code + Playwright MCP
+- Claude Code + OpenCLI

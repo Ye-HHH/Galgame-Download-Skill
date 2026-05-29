@@ -9,7 +9,7 @@
 | # | Site | Type | Login | Download | Search Method | Notes |
 |---|------|------|-------|----------|---------------|-------|
 | 1 | **shinnku.com** | 直链 | No | CDN | URL `/?search=` or searchbox "Search" | 主力，IDM高速。熟肉 zd/ + 0/win/，生肉 galgame0/ |
-| 2 | **mihoyo.ink** | Alist | No | 直链 | **Ctrl+K** opens search modal | 柚哩GAL仓库1-3 + 梓澪妙妙屋合集，大量熟肉+补丁归档 |
+| 2 | **mihoyo.ink** | Alist | No | 直链 | **Ctrl+K** opens search modal | 柚哩GAL仓库1-3 + 梓澪妙妙屋合集，大量熟肉+无码+补丁归档 |
 | 3 | **inarigal.com** | 直链 | No | 直链/网盘 | Searchbox "搜索游戏，L:会社，T:标签" | AI汉化标签 |
 | 4 | **galzy.moe** | 直链 | No | 直链 | **Must use searchbox** "标题、标签、回车，喵喵喵～🐾" | URL `?s=` invalid! |
 | 5 | **fh-xy.net** | 论坛 | No | 百度/夸克/UC | **Click 🔍 → searchbox** "请输入搜索内容" | URL `?s=` invalid! Password: 上老王论坛当老王 |
@@ -44,9 +44,13 @@
 
 ## mihoyo.ink (Alist) Specifics
 
-- **Search**: Ctrl+K → combobox select scope → type keyword
-- **Explore**: 点进子目录: `柚哩Gal/GAL仓库1`, `梓澪の妙妙屋/补丁/汉化补丁归档`
-- 结果是扁平列表，需要手动翻页
+**⚠️ 搜索前必须阅读：`references/sites/mihoyo.md` — 包含完整搜索流程、CJK输入、CDN提取、已知反模式和密码表。**
+
+简要备忘：
+- **Search**: Ctrl+K → `execCommand('insertText')` 输入 CJK → 弹窗在 DOM 最末尾，不能截断 state
+- **No `@search` URL**: 不支持，必须用 Ctrl+K 弹窗
+- **CDN**: `ali-cdn.mihoyo.fans`, `galgamedownload.date`, `alist-public.imoutoheaven.org`
+- **密码**: 柚哩Gal = `south-plus`，终点汉化 = 文件名括号内标注
 
 ## Multi-Keyword Search Strategy
 

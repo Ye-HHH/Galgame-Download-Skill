@@ -12,6 +12,21 @@ User request → Claude + OpenCLI browser → search sites → filter versions
     → IDM bridge (直链) / bdpan (百度盘) / 展示链接 (其他)
 ```
 
+## Config
+
+Session-persistent settings stored in `references/config.json`:
+
+```json
+{
+  "save_directory": "e:\\AllinOne"
+}
+```
+
+- **Read** at start of every session (Phase 0)
+- **Write** when user changes save directory: `"以后都下到 F:\\Games"`
+- Path format: Windows backslash, double-escaped in JSON. No trailing backslash.
+- User can override per-session: `"这次下到 D:\\Temp"` → use for this session only, don't update config
+
 ---
 
 ## Phase 0: Dependency Check
@@ -20,24 +35,38 @@ Before doing anything, verify these are available. If missing, fix or skip the r
 
 | Dependency | Check command | Used for | Required? |
 |-----------|---------------|----------|-----------|
+| Config | `cat references/config.json` | Save directory | **Yes** |
 | OpenCLI | `opencli doctor` | Browser search on all sites | **Yes** |
 | IDM bridge | `ls idm_bridge.py` in skill dir | Direct link downloads | For IDM mode |
+| IDM TempPath | `reg query HKCU\Software\DownloadManager /v TempPath` | 下载缓存目录 | **Must be on same drive as save path** |
 | Baidu client | `ls "D:/APP/BaiduNetdisk/BaiduNetdisk.exe"` | 百度盘 (auto-capture) | For 百度 mode |
 | BaiduPCS-Go | `which BaiduPCS-Go` | 百度盘 CLI (fast) | Optional, better than bdpan |
 | bdpan CLI | `bdpan whoami` | 百度盘 fallback | Deprecated |
 | 7z | `ls "/c/Program Files/NVIDIA Corporation/NVIDIA app/7z.exe"` | Archive extraction | Nice to have |
 
-Report what's available. If IDM is missing, skip Mode A (direct links become manual). If bdpan is missing or not logged in, skip Mode B or ask user to login.
+Report what's available, including the current `save_directory` from config.
+
+If IDM TempPath is on C: drive but save path is on another drive, fix it:
+```
+cmd.exe /c "reg add HKCU\Software\DownloadManager /v TempPath /t REG_SZ /d G:\IDM\Temp\ /f"
+mkdir -p "G:/IDM/Temp"
+```
+
+Before starting any download work, ensure these permissions are in `.claude/settings.local.json` to avoid constant prompts: `Bash`, `Read`, `Write`, `Edit`, `Glob`, `Grep`, `WebFetch`, `WebSearch`, `Skill`, `Agent`. If missing, add them with Python.
 
 ---
 
 ## Phase 1: Pre-download
 
-First session questions (once answered, reuse for the session):
+Ask these every session:
 
 1. **PC or mobile?** (exe / apk / krkr / ons)
-2. **Save directory?** (default: `e:\AllinOne`)
-3. **Download mode?** Normal / Silent / Silent+Notify (飞书)
+2. **Download mode?** Normal / Silent / Silent+Notify (飞书)
+
+**Save directory** is read from `references/config.json` in Phase 0. If user says `"这次下到 D:\\Temp"` or `"以后都下到 F:\\Games"`:
+- "这次" / "这次下载" → session-only override, don't touch config
+- "以后" / "默认" / "改到" → update `references/config.json`, persists across sessions
+- No mention of path → use config value silently, don't ask
 
 ---
 
@@ -75,35 +104,58 @@ Use WebSearch to gather from VNDB/Bangumi/2DFan, then present:
 
 Then ask which to download.
 
+### Mandatory Name Research (BEFORE Phase 3)
+
+For EVERY game the user wants, compile a name table BEFORE touching any download site. Use WebSearch to find all variants:
+
+```
+| Language | Name |
+|----------|------|
+| 日文原名 | ラブピカルポッピー！ |
+| 中文译名 | 缘起甜韵趣恋丛生！ |
+| 英文译名 | LOVEPICAL-POPPY! |
+| 简称/别名 | ラブピカ |
+```
+
+This is critical because:
+- mihoyo.ink uploaders mostly use Chinese filenames — 中文名命中率最高
+- shinnku raw files (galgame0/) use Japanese filenames — 日文名命中率最高
+- English names work as fallback on both sites
+
+Search each site with ALL name variants (Pass 1), then partial terms (Pass 2). Don't search with only one language and give up.
+
 ---
 
 ## Phase 3: Search Sites
 
 **ALWAYS use OpenCLI browser commands (`opencli browser dl <command>`). Never use WebSearch/WebFetch for site searching — they can't interact with search boxes, handle login walls, or execute JavaScript.**
 
-Session naming: use `dl` as the session ID for all download browsing. Always `opencli browser dl init` first to start the session.
+**Before searching any site, read its reference doc:**
+- `references/sites/mihoyo.md` — mihoyo.ink (mandatory: CJK input, Ctrl+K modal, CDN extraction)
+- `references/sites.md` — all other sites (shinnku, inarigal, galzy, fh-xy, etc.)
+- `references/cjk-input.md` — CJK input protocol and code point reference
 
-### Search Discovery Protocol (for ANY site)
+### ⚠️ CJK Input — Read This Before Searching
 
-Every site is different. Before searching, figure out how it works:
+Chinese/Japanese/Korean text gets corrupted when passed through bash. This breaks ALL search attempts on mihoyo.ink and any site with React-controlled inputs.
 
-1. **Navigate** to the site homepage: `opencli browser dl open <url>`
-2. **State** (`opencli browser dl state`) — look for:
-   - `<textbox>` or `<searchbox>` elements → try typing + Enter
-   - 🔍 / magnifying glass icons → click to open search
-   - `Ctrl+K` hints (Alist sites)
-   - URL structure: try `opencli browser dl open <url>/?s=keyword`
-3. **If URL params don't work** (page shows home, not results) → the site requires interactive search. Use the searchbox or icon found in step 2.
-4. **If state output is too large** → use `opencli browser dl eval` to extract only links/text matching the game name
-5. **Discuz! forums** (powered by Discuz) — URL params rarely work, always click 🔍 icon
-6. **Alist sites** (show `Ctrl K` at top) — `opencli browser dl keys Control+k` to open search modal
+**→ Read `references/cjk-input.md` for the full protocol and code point reference.**
 
-**Common failure patterns to avoid:**
-- ❌ Assuming `?s=` works everywhere → always test
-- ❌ Taking snapshot without first interacting with search → snapshot shows home page
-- ❌ Using WebSearch/WebFetch as shortcut → doesn't work for these sites
+Quick summary:
+- **shinnku**: Navigate via eval with `encodeURIComponent(String.fromCodePoint(...))`
+- **mihoyo.ink / Alist**: MUST use `document.execCommand('insertText', false, String.fromCodePoint(...))` — React controlled inputs reject direct `.value =` assignment
+- **⛔ NEVER use `/@search?keyword=` URL on mihoyo.ink** — returns "failed get storage"
+- **⛔ NEVER truncate state with head/tail** — the Ctrl+K search modal renders at the VERY END of DOM output
 
-Cached search methods for known sites → `references/sites.md`
+### Search Workflow: Find → Extract → Next
+
+**Do NOT batch-search all games then backtrack to extract links.** For each game:
+1. Search all name variants (CN/JP/EN from Phase 2)
+2. Click best result → detail page → extract CDN immediately
+3. Record CDN + password + size
+4. Move to next game
+
+This avoids re-searching and re-finding games you already located.
 
 ### Path Decision (per game)
 
@@ -143,10 +195,15 @@ After getting search results, use `opencli browser dl eval` to automatically ext
 
 Don't manually copy-paste links — extract programmatically.
 
-### Version selection:
-- Prefer 熟肉 over 生肉
-- Prefer 整合版 over split parts
-- Exclude apk/krkr/ons unless mobile requested
+### Version selection
+When comparing download options, prefer in this order:
+1. 熟肉 (Chinese translation) over 生肉 (Japanese only)
+2. 汉化硬盘版 / 官中 over 机翻 (machine translation) — users explicitly reject 机翻
+3. Non-Steam repacks over Steam versions (user preference)
+4. 无码 (uncensored) over 有码 if available — but don't reject a version solely for lacking 无码
+5. Single file over split parts (`.7z.001/.002/.003...` — extra reassembly steps)
+6. Smaller file size when versions are equivalent
+7. Exclude apk/krkr/ons unless mobile requested
 
 ### Multi-keyword search (two passes):
 
@@ -170,10 +227,23 @@ Don't manually copy-paste links — extract programmatically.
 - If there are `<a>` tags with cloud URLs → extract href directly via `opencli browser dl eval`
 - If the link is hidden (kungal) → click "获取链接" button first
 
-**Step C: Feed to IDM bridge.** Never paste into IDM manually. Use:
+**Step C: Feed to IDM bridge.** Never paste into IDM manually.
+
+⚠️ **Path and filename rules:**
+- **Path**: Use Windows backslash from `references/config.json` → `save_directory`, escaped for bash. Forward slash produces `g:/\filename` — NOT a valid Windows path (IDM silently falls back to its default directory, usually C: drive).
+- **Filename**: ASCII ONLY. No CJK, no full-width punctuation (！？～ etc.). CJK characters corrupt when passed through bash and the file ends up with a garbled name like `LAMUNATION锛�.7z`.
+  - ✅ `NUKITASHI1.rar`, `HENPRI.rar`, `Karikoi.rar`
+  - ❌ `LAMUNATION！.7z`, `抜きゲー...rar`
+
 ```bash
-python idm_bridge.py "<real_download_url>" "<referer>" "g:/" "<filename>" --silent
+python idm_bridge.py "<cdn_url>" "<referer>" "<save_dir>\\" "<ascii_filename>" --silent
 ```
+
+Where `<save_dir>` is the value from `references/config.json` (e.g. `e:\\AllinOne`).
+
+Referer mapping:
+- shinnku → `"https://www.shinnku.com/"`
+- mihoyo.ink / galgamedownload.date / ali-cdn.mihoyo.fans / alist-public.imoutoheaven.org → `"https://mihoyo.ink/"`
 
 ### Per-Site Instructions
 
@@ -219,7 +289,13 @@ If a link is dead, the agent checks backup links from the same post. Only workin
 | 3 | ZZZ | pan.quark... | xxx |
 ```
 
-**Ask user: "全下还是挑几部？"** Only after user confirms, proceed to Phase 4. **Never switch files on your own — user chose this, download exactly this.**
+**Ask user: "全下还是挑几部？"**
+
+⛔ **This is a HARD BOUNDARY. Do NOT start any download before user explicitly confirms.**
+- STOP all action after presenting the table
+- Wait for explicit user confirmation ("下吧", "全下", "挑这几部下")
+- If you accidentally started a download during Phase 3, TELL the user immediately
+- Only AFTER confirmation, proceed to Phase 4
 
 ### Step 3: Fallback when nothing found
 
@@ -272,24 +348,53 @@ Show links to user. Suggest switching to shinnku/galzy.
 
 See `references/passwords.md` for site passwords and format handling.
 
-**Only if the resource has a password**, create a `<filename>_解压密码.txt` in the same directory:
+**For resources with passwords**, create a password file in the same save directory.
+
+⚠️ **echo and python -c "中文" both garble Chinese text through bash.** Use Python with chr() code points:
+
+```bash
+python -c "text=chr(0x6587)+chr(0x4ef6)+chr(0x540d)+': <ascii_filename>\n'+chr(0x89e3)+chr(0x538b)+chr(0x5bc6)+chr(0x7801)+': <password>\n'+chr(0x4e0b)+chr(0x8f7d)+chr(0x6765)+chr(0x6e90)+': <site>';open('<save_dir>/${ascii_basename}_password.txt','w',encoding='utf-8').write(text)"
 ```
-文件名: <filename>
-解压密码: <password>
-下载来源: <site>
-```
-Extract the password from the same page where you found the download link. Don't guess — it's on the same page. If the site has no password (shinnku, galzy, inarigal, mihoyo.ink), skip this step entirely.
+
+Common chr() values:
+- 文件名 = chr(0x6587)+chr(0x4ef6)+chr(0x540d)
+- 解压密码 = chr(0x89e3)+chr(0x538b)+chr(0x5bc6)+chr(0x7801)
+- 下载来源 = chr(0x4e0b)+chr(0x8f7d)+chr(0x6765)+chr(0x6e90)
+
+⚠️ **Filename must be ASCII** (`_password.txt`) — CJK in filenames also corrupts.
+**Content is Chinese** — constructed safely inside Python via chr(), never passing through bash.
+
+Extract the password from the file detail page — it's usually written near the download button or in the page footer. Don't guess. If the page has no password, skip this step.
 
 ---
 
 ## Key Rules
 
-- Never use `idman /d` CLI — no Referer support; use `idm_bridge.py`
-- Never guess shinnku CDN URLs — visit detail page to extract real CDN link
-- Each site has a different search method — check `references/sites.md`, don't assume URL params work
-- `bdpan download` for 百度 share links, use `run_in_background` for >50MB files
-- bdpan error -7 = Baidu API rate limit; file is already in cloud, suggest manual browser download
-- For qingju: lz4 encryption, must note in password file with tutorial links
-- For Alist sites (mihoyo.ink): Ctrl+K search, explore subdirectories
-- fh-xy search: click 🔍 icon first, URL params don't work
-- Inarigal downloads have time-limited tokens — capture from network requests and IDM immediately
+### Search
+- **Phase 2 is mandatory** — research CN/JP/EN names for EVERY game before Phase 3
+- **Phase 3 workflow**: Find game → click best result → extract CDN → next game. Never batch-search then backtrack
+- **CJK input** → `references/cjk-input.md`. `execCommand('insertText')` + `String.fromCodePoint()` ONLY
+- **⛔ NEVER truncate state** with head/tail — the Ctrl+K search modal renders at the VERY END of DOM
+- **⛔ NEVER use `/@search?keyword=` URL** on mihoyo.ink — doesn't work, use Ctrl+K modal
+- **Ctrl+K**: if modal not visible, retry up to 3 times before assuming it failed. Use `document.getElementById('search-input') ? 'OPEN' : 'CLOSED'` to verify
+- **`input.value = q` does NOT work** on React controlled inputs (mihoyo.ink) — use `execCommand('insertText')`
+
+### Download
+- **IDM path**: from `references/config.json` → `save_directory` (Windows backslash, escaped for bash). `g:/` produces `g:/\filename` — invalid path
+- **IDM filename**: ASCII only. No CJK, no full-width punctuation
+- **IDM TempPath**: must be on same drive as download destination — check in Phase 0
+- **Never use `idman /d` CLI** — no Referer support; use `idm_bridge.py`
+- **Never guess shinnku CDN URLs** — visit detail page to extract real CDN link
+- **Inarigal**: time-limited tokens — capture from network requests and IDM immediately
+- **bdpan error -7**: Baidu API rate limit; suggest manual browser download
+
+### Workflow
+- **Phase 3.5 is HARD BOUNDARY** — confirm full list with user BEFORE any download
+- **If a download starts accidentally** during search, tell user immediately
+- **Version preference**: 熟肉 > 生肉, 汉化/官中 > 机翻, 无码 > 有码(if available), non-Steam > Steam, single file > split
+
+### Site-specific
+- **fh-xy**: click 🔍 icon first, URL params don't work (Discuz! forum)
+- **qingju**: lz4 encryption + password `qingju`
+- **Each site has different search method** — check `references/sites.md`
+- **Passwords**: extract from file detail page, create `_解压密码.txt` with ASCII basename
