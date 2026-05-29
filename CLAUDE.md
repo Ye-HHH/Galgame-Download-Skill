@@ -9,10 +9,11 @@ This is a Claude Code skill that automates galgame (visual novel) searching and 
 ## Architecture
 
 ```
-User request → SKILL.md Phase 0-5 workflow
+User request → SKILL.md Phase 0-6 workflow
   → OpenCLI browser (opencli browser dl <cmd>) for site interaction
   → idm_bridge.py (Python COM bridge) for sending links to IDM
-  → Password files written alongside downloads
+  → wait_download.py (poll file size until complete)
+  → extract_and_clean.py (extract, delete archive, clean junk)
 ```
 
 The skill is NOT a standalone program — it's a workflow executed by Claude using OpenCLI browser commands and Python scripts.
@@ -20,7 +21,7 @@ The skill is NOT a standalone program — it's a workflow executed by Claude usi
 ## File Structure & When to Read
 
 ```
-SKILL.md                         ← Always read first. Complete Phase 0-5 workflow.
+SKILL.md                         ← Always read first. Complete Phase 0-6 workflow.
 idm_bridge.py                    ← IDM COM API bridge. Read if modifying download behavior.
 references/
   sites.md                       ← Quick reference for all 17 sites. Read before searching any site.
@@ -30,6 +31,9 @@ references/
                                     execCommand('insertText') + String.fromCodePoint() ONLY.
   cdn.md                         ← shinnku CDN URL patterns and IDM usage details.
   passwords.md                   ← Site-wide passwords and archive format handling (lz4, etc.)
+  config.json                    ← Persistent save_directory setting.
+  wait_download.py               ← Poll file size vs expected size until download complete.
+  extract_and_clean.py           ← Extract archive, delete on success, clean junk files.
 ```
 
 **Key rule**: SKILL.md Phase 3 directs you to read `references/sites/mihoyo.md` before touching mihoyo.ink. Follow that directive every time — do not rely on memory.
@@ -53,9 +57,12 @@ references/
 - IDM TempPath must be on the same drive as downloads. Check via `reg query HKCU\Software\DownloadManager /v TempPath`.
 
 ### Workflow
-- Phase 3 → Find game → click result → extract CDN → next game. **Never batch-search then backtrack.**
+- Phase 3 → Find game → click result → extract CDN + size + password → next game. **Never batch-search then backtrack.**
 - Phase 3.5 is a HARD BOUNDARY. Present full summary table → wait for explicit confirmation → then download.
 - Do NOT start any download before user confirms.
+- Phase 4: Send downloads + track expected_size for each file.
+- Phase 5: Poll each file with `wait_download.py` until size >= expected. Run in parallel.
+- Phase 6: Extract → delete archive → clean junk → password file. Single game in save root, series in `SERIES_NAME/`.
 
 ### mihoyo.ink Anti-Patterns
 - `/@search?keyword=` URL does NOT work. Use Ctrl+K modal only.
@@ -68,6 +75,12 @@ references/
 # IDM download (run from skill directory)
 cd E:/.../skills/galgame-download
 python idm_bridge.py "<cdn_url>" "<referer>" "<save_dir>\\" "<ascii_filename>" --silent
+
+# Wait for download to complete
+python references/wait_download.py "<save_dir>\\<filename>" "3.5 GB" --interval=30
+
+# Extract, delete archive, clean junk
+python references/extract_and_clean.py "<save_dir>\\<filename>" "<output_dir>" --password "<pwd>"
 
 # OpenCLI browser search (run from any directory)
 opencli browser dl open "https://mihoyo.ink/"

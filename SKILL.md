@@ -9,7 +9,8 @@ description: GalGame 下载助手 — 搜索、筛选、下载 galgame 资源。
 
 ```
 User request → Claude + OpenCLI browser → search sites → filter versions
-    → IDM bridge (直链) / bdpan (百度盘) / 展示链接 (其他)
+    → IDM bridge / bdpan (download) → wait_download.py (poll completion)
+    → extract_and_clean.py (extract + delete archive + organize)
 ```
 
 ## Config
@@ -330,13 +331,17 @@ If a link is dead, the agent checks backup links from the same post. Only workin
 
 ## Phase 4: Execute Download
 
+For each game, send the download task then record the expected file size for Phase 5 completion detection.
+
 ### Mode A: IDM 直链 (shinnku, galzy, inarigal, mihoyo)
 
 **shinnku: must visit detail page to get real CDN URL** (生肉/熟肉 use different CDN). See `references/cdn.md`.
 
 ```bash
-python idm_bridge.py "<cdn_url>" "<referer>" "<save_path>" "<filename>" --silent
+python idm_bridge.py "<cdn_url>" "<referer>" "<save_dir>\\" "<ascii_filename>" --silent
 ```
+
+Track: `filename`, `save_dir`, `expected_size` (from Phase 3 extraction), `password` (if any).
 
 ### Mode B: 百度网盘
 
@@ -359,33 +364,107 @@ bdpan download "https://pan.baidu.com/s/1xxxxx?pwd=abcd" <save_path>/
 ```
 - error -7 = API rate limit, abandon immediately and switch to #1 or #2
 
+Track same info as Mode A for Phase 5/6.
+
 ### Mode C: Other disks (夸克/和彩云/阿里)
 
-Show links to user. Suggest switching to shinnku/galzy.
+Show links to user. Suggest switching to shinnku/galzy. No auto-extract for these.
+
+### Download Queue
+
+After all downloads are sent, present the queue:
+
+```
+📥 下载队列
+| # | 作品 | 文件名 | 预期大小 | 状态 |
+|---|------|--------|----------|------|
+| 1 | 拔作岛 | NUKITASHI1.rar | 3.5 GB | ⏳ 下载中 |
+| 2 | 变态监狱 | HENPRISON.7z | 4.2 GB | ⏳ 下载中 |
+```
+
+Then **proceed to Phase 5 immediately** — don't wait for user.
 
 ---
 
-## Phase 5: Post-Download
+## Phase 5: Wait & Complete
 
-See `references/passwords.md` for site passwords and format handling.
-
-**For resources with passwords**, create a password file in the same save directory.
-
-⚠️ **echo and python -c "中文" both garble Chinese text through bash.** Use Python with chr() code points:
+For each download in the queue, poll until file size matches expected size:
 
 ```bash
-python -c "text=chr(0x6587)+chr(0x4ef6)+chr(0x540d)+': <ascii_filename>\n'+chr(0x89e3)+chr(0x538b)+chr(0x5bc6)+chr(0x7801)+': <password>\n'+chr(0x4e0b)+chr(0x8f7d)+chr(0x6765)+chr(0x6e90)+': <site>';open('<save_dir>/${ascii_basename}_password.txt','w',encoding='utf-8').write(text)"
+# Run from skill directory
+python references/wait_download.py "<save_dir>\\<filename>" "<expected_size>" --interval=30 --timeout=7200
 ```
 
-Common chr() values:
-- 文件名 = chr(0x6587)+chr(0x4ef6)+chr(0x540d)
-- 解压密码 = chr(0x89e3)+chr(0x538b)+chr(0x5bc6)+chr(0x7801)
-- 下载来源 = chr(0x4e0b)+chr(0x8f7d)+chr(0x6765)+chr(0x6e90)
+- `expected_size` can be bytes or human-readable ("3.5 GB")
+- Polls every 30s, times out after 2 hours
+- Exits 0 when size >= expected, exits 1 on timeout
 
-⚠️ **Filename must be ASCII** (`_password.txt`) — CJK in filenames also corrupts.
-**Content is Chinese** — constructed safely inside Python via chr(), never passing through bash.
+**While waiting:** proceed with other downloads. Run multiple `wait_download.py` instances in parallel via `run_in_background`.
 
-Extract the password from the file detail page — it's usually written near the download button or in the page footer. Don't guess. If the page has no password, skip this step.
+**When done:** mark status as ✅, report progress.
+
+**On timeout:** mark as ⚠️, tell user file may be stuck, ask whether to wait more or skip.
+
+---
+
+## Phase 6: Extract & Organize
+
+When all downloads are ✅, extract each archive into the correct directory structure.
+
+### 6.1 Determine Output Directory
+
+```
+Single game:  <save_dir>/                  (extract into save root)
+Series:       <save_dir>/ENGLISH_SERIES_NAME/  (extract into series subfolder)
+```
+
+- Extract the archive **as-is** — the archive's internal folder name is preserved
+- Series name: ASCII only (e.g. "Taimanin", "Amakano", "Yuzusoft")
+- If unsure whether it's a series, ask: `"这是系列吗？如果是，用哪个英文名？"`
+
+### 6.2 Extract
+
+```bash
+python references/extract_and_clean.py "<save_dir>\\<filename>" "<output_dir>" --password "<pwd>"
+```
+
+- `--password` only if archive has one (extracted in Phase 3)
+- `--keep` to skip deletion (default: deletes archive on success)
+- Handles: .7z, .rar, .zip, .lz4 (decrypts first), .tar.gz, multipart (.7z.001)
+- On success: deletes archive, cleans junk files (.url, 广告, Thumbs.db, __MACOSX)
+- On failure: keeps archive, reports error
+
+### 6.3 Post-Extract: Password File
+
+Same as before — create `_password.txt` in the extracted game folder:
+
+```bash
+python -c "text=chr(0x6587)+chr(0x4ef6)+chr(0x540d)+': <ascii_filename>\n'+chr(0x89e3)+chr(0x538b)+chr(0x5bc6)+chr(0x7801)+': <password>\n'+chr(0x4e0b)+chr(0x8f7d)+chr(0x6765)+chr(0x6e90)+': <site>';open('<output_dir>/<ascii_basename>_password.txt','w',encoding='utf-8').write(text)"
+```
+
+### 6.4 Report
+
+```
+📦 解压完成
+| # | 作品 | 解压到 | 大小 | 状态 |
+|---|------|--------|------|------|
+| 1 | 拔作岛 | e:\AllinOne\NUKITASHI1_汉化硬盘版 | 3.5 GB | ✅ |
+| 2 | 变态监狱 | e:\AllinOne\HENPRISON_汉化 | 4.2 GB | ✅ |
+```
+
+### Example: Series
+
+User downloads "对魔忍全系列" → save to `e:\AllinOne\Taimanin\`:
+
+```
+e:\AllinOne\Taimanin\
+├── 対魔忍アサギ_完全版\
+├── 対魔忍アサギ2_謀略の奴隷\
+├── 対魔忍アサギ3\
+└── 対魔忍ユキカゼ\
+```
+
+Archive internal folders preserved as-is. Series parent folder named in English.
 
 ---
 
@@ -393,7 +472,8 @@ Extract the password from the file detail page — it's usually written near the
 
 ### Search
 - **Phase 2 is mandatory** — research CN/JP/EN names for EVERY game before Phase 3
-- **Phase 3 workflow**: Find game → click best result → extract CDN → next game. Never batch-search then backtrack
+- **Phase 3 workflow**: Find game → click best result → extract CDN + size + password → next game. Never batch-search then backtrack
+- **Record `expected_size` for every game** — needed for Phase 5 completion detection
 - **CJK input** → `references/cjk-input.md`. `execCommand('insertText')` + `String.fromCodePoint()` ONLY
 - **⛔ NEVER truncate state** with head/tail — the Ctrl+K search modal renders at the VERY END of DOM
 - **⛔ NEVER use `/@search?keyword=` URL** on mihoyo.ink — doesn't work, use Ctrl+K modal
@@ -403,11 +483,19 @@ Extract the password from the file detail page — it's usually written near the
 ### Download
 - **IDM path**: from `references/config.json` → `save_directory` (Windows backslash, escaped for bash). `g:/` produces `g:/\filename` — invalid path
 - **IDM filename**: ASCII only. No CJK, no full-width punctuation
-- **IDM TempPath**: must be on same drive as download destination — check in Phase 0
+- **IDM TempPath**: must be on same drive as download destination — check in Phase 1.2
 - **Never use `idman /d` CLI** — no Referer support; use `idm_bridge.py`
 - **Never guess shinnku CDN URLs** — visit detail page to extract real CDN link
 - **Inarigal**: time-limited tokens — capture from network requests and IDM immediately
 - **bdpan error -7**: Baidu API rate limit; suggest manual browser download
+
+### Extract & Organize
+- **Phase 5**: Poll with `wait_download.py <path> <expected_size>`. Run multiple in parallel via `run_in_background`
+- **Phase 6**: Single game → `<save_dir>/`, Series → `<save_dir>/SERIES_NAME/`
+- **Preserve archive internal folder name** — don't rename extracted folders
+- **Delete archive on successful extract** (default). `--keep` to override
+- **Clean junk**: .url, 广告*.txt, Thumbs.db, __MACOSX removed after extract
+- **Password file**: created in extracted game folder, ASCII filename, Chinese content via chr()
 
 ### Workflow
 - **Phase 3.5 is HARD BOUNDARY** — confirm full list with user BEFORE any download
@@ -418,4 +506,4 @@ Extract the password from the file detail page — it's usually written near the
 - **fh-xy**: click 🔍 icon first, URL params don't work (Discuz! forum)
 - **qingju**: lz4 encryption + password `qingju`
 - **Each site has different search method** — check `references/sites.md`
-- **Passwords**: extract from file detail page, create `_解压密码.txt` with ASCII basename
+- **Passwords**: extract from file detail page

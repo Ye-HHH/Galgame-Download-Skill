@@ -70,8 +70,11 @@
                ▼
 ┌──────────────────────────────────────┐
 │  ⑥ 后处理                           │
+│  → 轮询文件大小直到下载完成          │
+│  → 自动解压 + 删除压缩包             │
+│  → 系列整理到子目录                  │
+│  → 清理垃圾文件(.url/广告)           │
 │  → 创建 解压密码.txt                 │
-│  → lz4 加密格式注明解密教程          │
 │  → 飞书 bot 通知下载完成              │
 └──────────────────────────────────────┘
 ```
@@ -120,7 +123,7 @@
 
 ```
 galgame-download/
-├── SKILL.md              Phase 0-5 完整工作流
+├── SKILL.md              Phase 0-6 完整工作流
 ├── idm_bridge.py         IDM COM 桥接脚本
 ├── references/
 │   ├── config.json       下载目录等持久化配置
@@ -128,7 +131,9 @@ galgame-download/
 │   ├── sites/mihoyo.md   mihoyo.ink 完整指南
 │   ├── passwords.md      密码处理 + lz4 教程
 │   ├── cjk-input.md      CJK 输入协议
-│   └── cdn.md            shinnku CDN 细节 + IDM 用法
+│   ├── cdn.md            shinnku CDN 细节 + IDM 用法
+│   ├── wait_download.py  轮询下载完成检测
+│   └── extract_and_clean.py  解压+清理+整理
 └── README.md
 ```
 
