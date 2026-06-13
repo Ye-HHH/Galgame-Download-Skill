@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this galgame-download skill.
 
 ## Overview
 
@@ -62,7 +62,8 @@ references/
 
 ### IDM Path
 - Use Windows backslash from config: `save_directory` in `references/config.json`. Forward slash produces invalid `g:/\filename`.
-- Filenames: ASCII ONLY. CJK chars corrupt in bash → garbled filenames like `LAMUNATION锛�.7z`.
+- **Preserve original filename from CDN. Do NOT rename files.** The original name contains game title, version, patch type.
+- If filename has CJK chars that corrupt through bash → use Python to construct the path and call idm_bridge.py, or download via browser click instead.
 - IDM TempPath must be on the same drive as downloads. Check via `reg query HKCU\Software\DownloadManager /v TempPath`.
 
 ### Cloudflare / 403
@@ -71,18 +72,85 @@ references/
 - Python urllib + full browser headers works as fallback (single-threaded, slower).
 - See `references/403-forbidden.md` for full detection and resolution flow.
 
+### No Automation Scripts ⛔
+- **NEVER write Python/shell scripts to automate cleanup, deletion, or batch operations.**
+- All procedures must be natural language instructions in reference docs.
+- Scripts hide failure modes (silent errors, permission issues, partial completions) and cause irreversible damage.
+- The only allowed scripts are `idm_bridge.py` (IDM download submission) and `wait_download.py` (poll completion) — these have been battle-tested and do NOT modify/delete files.
+
+### Delete Requires User Permission ⛔
+- **NEVER delete archive files (.rar/.7z/.zip) without explicit user confirmation.**
+- Deletion is the LAST step: extract → verify completeness (file count, sizes) → organize → THEN ask: "解压完成，确认删除压缩包？"
+- If extraction fails or is incomplete: keep archive, report failure.
+- If unsure about anything: keep archive, ask user.
+
+### No Silent Rerouting ⛔ (TOP-LEVEL RULE)
+- ⛔ **When ANY step fails, hits friction, or the documented procedure doesn't work — STOP and tell the user before changing anything.**
+- This covers EVERYTHING: search sites, download sources, CDN, file operations, folder naming, game selection.
+- Report: (1) what step failed, (2) what error you got, (3) what options you see.
+- Let the user decide the path forward. They know the sites better than you do.
+- **Specific examples of what requires user approval BEFORE acting:**
+  - Search modal won't open → don't switch to directory browsing
+  - One site's CDN is broken → don't silently use another site
+  - A game version is missing → don't skip it without asking
+  - Moving files between directories → user confirms first
+  - Deleting any file → user confirms first
+  - Renaming folders → user confirms first
+  - ISO/MDF detected → tell user, don't silently leave it
+  - Multiple game editions found → ask which to keep
+- The procedure docs (mihoyo.md, sites.md, etc.) are the playbook. Follow them exactly. If they don't work, report — don't improvise.
+
 ### Workflow
 - Phase 3 → Find game → click result → extract CDN + size + password → next game. **Never batch-search then backtrack.**
 - Phase 3.5 is a HARD BOUNDARY. Present full summary table → wait for explicit confirmation → then download.
 - Do NOT start any download before user confirms.
 - Phase 4: Send downloads + track expected_size for each file.
 - Phase 5: Poll each file with `wait_download.py` until size >= expected. Run in parallel.
-- Phase 6: Extract → delete archive → clean junk → password file. Single game in save root, series in `SERIES_NAME/`.
+- Phase 6: Extract → check archive structure → extract to `g:\预整理\` → flatten nesting (remove duplicate wrapper folders) → **check for ISO/MDF/nested rars and extract those too** → verify exe exists → place patches → move to `g:\<指定的文件夹名>\` → **ONLY delete archives after user permission**. Archive folder name is the archive's own top-level folder name (Principle 1), never renamed.
+- ⛔ **ISO/MDF detection is mandatory.** If after extraction you see .iso/.mdf/.mds files instead of .exe → TELL THE USER immediately. Don't silently leave an unplayable game folder. The archive filename itself often contains `iso+mds` or `mdf+mds` — check BEFORE extracting.
+- ⛔ **Recursive extraction required.** If the extracted folder contains more .rar files → extract those too. Repeat until you see actual game files.
+- ⛔ **NEVER delete a rar unless the extraction produced >2 top-level items AND total extracted bytes >= 30% of archive size.** If output dir is empty, or has only 1-2 shell items, or extracted data is too small — KEEP the archive and report failure.
 
 ### mihoyo.ink Anti-Patterns
 - `/@search?keyword=` URL does NOT work. Use Ctrl+K modal only.
 - `input.value = "xxx"` does NOT work on React controlled inputs. Use `execCommand('insertText')`.
 - Do not browse directories manually — search is always faster on this site.
+
+### Background Process Cleanup ⛔
+
+- `TaskStop` kills the bash wrapper, **NOT** child processes (7z, python, IDM).
+- After stopping a background task, always kill orphans:
+  ```bash
+  cmd.exe /c "taskkill /f /im 7z.exe"     # Kill extraction zombies
+  cmd.exe /c "taskkill /f /im python.exe"  # Kill script zombies
+  ```
+- Zombie processes hold file locks → "Device or resource busy" on mv/rm.
+- Never submit long-running extractions as background tasks without a cleanup plan.
+
+### Multi-Agent Browser Strategy (OpenCLI Profiles)
+
+⛔ **Do NOT launch multiple agents sharing one OpenCLI browser.** The browser is a singleton resource — agents will race for the page, causing context corruption and deadlocks.
+
+**The fix: OpenCLI profiles.** Each profile gets its own Chrome instance. Agents can run in parallel if each uses a different profile.
+
+```bash
+# Create and bind profiles (one-time setup)
+opencli profile create galgame-dl-1
+opencli profile create galgame-dl-2
+opencli profile create galgame-dl-3
+
+# Each agent uses a different profile
+opencli --profile galgame-dl-1 browser dl open "https://mihoyo.ink/"
+opencli --profile galgame-dl-2 browser dl open "https://mihoyo.ink/"
+opencli --profile galgame-dl-3 browser dl open "https://mihoyo.ink/"
+```
+
+**Known issue:** OpenCLI has a Chrome process cleanup bug ([#10299](https://github.com/openclaw/openclaw/issues/10299)) where old processes accumulate. After parallel work, run:
+```bash
+opencli daemon restart  # Cleans up stale Chrome processes
+```
+
+**When to use multi-agent:** Only for independent download tasks (each agent handles one game end-to-end). Do NOT use for tasks that need coordination across agents.
 
 ## Key Commands
 

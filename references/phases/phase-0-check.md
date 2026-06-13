@@ -4,6 +4,13 @@
 
 **Exit**: All required deps verified (or missing ones noted). → Phase 1.
 
+## Reuse Rule
+
+⛔ **Do NOT re-run the full check if this project has passed Phase 0 in a prior session.**
+- Check project memory/CLAUDE.md for recorded toolchain status.
+- If all tools were previously verified, skip to Phase 1 with a one-line confirmation.
+- Only run individual checks for tools that may have changed (e.g., extension disconnected).
+
 ---
 
 ## Toolchain

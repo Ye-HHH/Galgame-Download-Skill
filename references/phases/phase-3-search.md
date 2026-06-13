@@ -30,8 +30,27 @@ Quick summary:
 
 1. Search all name variants (CN/JP/EN from Phase 2)
 2. Click best result → detail page → extract CDN immediately
-3. Record CDN + password + size
-4. Move to next game
+3. **MUST record 3 things per game: CDN + password + size**
+
+## Password Collection ⛔
+
+⛔ **EVERY game download must have a password recorded before Phase 4. No exceptions.**
+
+Common mihoyo passwords by source directory:
+| 来源目录 | 密码 |
+|----------|------|
+| 柚哩Gal / GAL仓库 | `south-plus` |
+| 终点汉化 | 看文件括号内标注 |
+| 南+合集 | `south-plus` |
+| 梓澪の妙妙屋(浮士德) | 无密码 |
+| 梓澪の妙妙屋(补丁) | 无密码 |
+| galgamedownload.date (生肉) | 无密码 |
+
+**Check methods:**
+- mihoyo detail page → look for 解压密码 section in footer
+- shinnku detail page → check page text for 密码/解压
+- Click "复制链接" if needed to see full page info
+- If password is NOT found → **mark as UNKNOWN in summary, ask user before Phase 4**
 
 ## Path Decision
 

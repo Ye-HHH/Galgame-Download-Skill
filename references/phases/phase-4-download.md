@@ -6,7 +6,13 @@
 
 ---
 
-Track for each download: `filename`, `save_dir`, `expected_size`, `password` (if any).
+**save_dir = config.json `save_directory`.** This is the archive storage directory (e.g. `g:\压缩文件\`). Extracted games go elsewhere (e.g. `g:\CLOCKUP\`). Do NOT extract into the archive directory.
+
+**Preserve original filename.** Use the filename from the CDN/download server. Do NOT rename to simplified/ASCII names like "KuroAi patch.7z". The original filename contains context (game title, version, patch type, group name).
+
+If the filename contains CJK characters that corrupt through bash, use `String.fromCodePoint()` to construct it inside a Python eval, or use the browser's download mechanism instead.
+
+Track for each download: `original_filename`, `save_dir`, `expected_size`, `password` (if any).
 
 ## Mode A: IDM 直链 (shinnku, galzy, inarigal, mihoyo)
 
